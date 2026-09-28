@@ -1,0 +1,40 @@
+name: lb_admin_app
+description: LB laundry management app — device provisioning, parameters, and remote start.
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+
+# NOTE: versions below are best-effort as of my knowledge cutoff — this
+# sandbox has no access to pub.dev, so I couldn't verify current latest
+# releases. Run `flutter pub outdated` after `flutter pub get` and bump
+# anything that's moved on, especially flutter_blue_plus and mobile_scanner
+# which both iterate quickly.
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.6
+
+  # Networking
+  dio: ^5.4.0
+
+  # Secure storage for the Sanctum API token
+  flutter_secure_storage: ^9.0.0
+
+  # QR scanning (scan the device's printed QR to get its serial number)
+  mobile_scanner: ^5.1.1
+
+  # BLE provisioning (send WiFi SSID/password directly to the ESP32)
+  flutter_blue_plus: ^1.32.12
+
+  # Simple state management
+  provider: ^6.1.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
