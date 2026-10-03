@@ -1,16 +1,13 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
-import '../models/device.dart';
+import '../models/models.dart';
 import 'app_config.dart';
 
-/// Thrown for any non-2xx response, carrying the backend's message so the
-/// UI can show something more useful than "DioException".
 class ApiException implements Exception {
   final int? statusCode;
   final String message;
   ApiException(this.statusCode, this.message);
-
   @override
   String toString() => message;
 }
@@ -31,9 +28,7 @@ class ApiService {
     _dio.interceptors.add(InterceptorsWrapper(
       onRequest: (options, handler) async {
         final token = await _storage.read(key: _tokenKey);
-        if (token != null) {
-          options.headers['Authorization'] = 'Bearer $token';
-        }
+        if (token != null) options.headers['Authorization'] = 'Bearer $token';
         handler.next(options);
       },
       onError: (error, handler) {
@@ -53,15 +48,14 @@ class ApiService {
 
   Future<bool> get isLoggedIn async => (await _storage.read(key: _tokenKey)) != null;
 
-  Future<void> login(String email, String password, {String deviceName = 'technician-app'}) async {
+  Future<void> login(String email, String password, {String deviceName = 'lb-admin-app'}) async {
     try {
       final response = await _dio.post('/technician/login', data: {
         'email': email,
         'password': password,
         'device_name': deviceName,
       });
-      final token = response.data['token'] as String;
-      await _storage.write(key: _tokenKey, value: token);
+      await _storage.write(key: _tokenKey, value: response.data['token'] as String);
     } on DioException catch (e) {
       throw _rethrow(e);
     }
@@ -71,17 +65,52 @@ class ApiService {
     try {
       await _dio.post('/technician/logout');
     } on DioException {
-      // Even if the server call fails (e.g. already offline), still clear
-      // the local token so the app doesn't get stuck "logged in".
+      // fall through — clear the local token regardless
     } finally {
       await _storage.delete(key: _tokenKey);
     }
   }
 
+  Future<Map<String, dynamic>> dashboard() async {
+    try {
+      final r = await _dio.get('/technician/dashboard');
+      return r.data;
+    } on DioException catch (e) {
+      throw _rethrow(e);
+    }
+  }
+
+  Future<Map<String, dynamic>> profile() async {
+    try {
+      final r = await _dio.get('/technician/profile');
+      return r.data;
+    } on DioException catch (e) {
+      throw _rethrow(e);
+    }
+  }
+
+  Future<List<OutletSummary>> outlets() async {
+    try {
+      final r = await _dio.get('/technician/outlets');
+      return (r.data['outlets'] as List).map((e) => OutletSummary.fromJson(e)).toList();
+    } on DioException catch (e) {
+      throw _rethrow(e);
+    }
+  }
+
+  Future<List<OutletDeviceSummary>> outletDevices(int outletId) async {
+    try {
+      final r = await _dio.get('/technician/outlets/$outletId/devices');
+      return (r.data['devices'] as List).map((e) => OutletDeviceSummary.fromJson(e)).toList();
+    } on DioException catch (e) {
+      throw _rethrow(e);
+    }
+  }
+
   Future<DeviceDetail> fetchDevice(String serial) async {
     try {
-      final response = await _dio.get('/technician/devices/$serial');
-      return DeviceDetail.fromJson(response.data);
+      final r = await _dio.get('/technician/devices/$serial');
+      return DeviceDetail.fromJson(r.data);
     } on DioException catch (e) {
       throw _rethrow(e);
     }
@@ -89,26 +118,35 @@ class ApiService {
 
   Future<DeviceParameters> updateParameters(String serial, DeviceParameters params) async {
     try {
-      final response = await _dio.put(
-        '/technician/devices/$serial/parameters',
-        data: params.toJson(),
-      );
-      return DeviceParameters.fromJson(response.data['parameters']);
+      final r = await _dio.put('/technician/devices/$serial/parameters', data: params.toJson());
+      return DeviceParameters.fromJson(r.data['parameters']);
     } on DioException catch (e) {
       throw _rethrow(e);
     }
   }
 
-  /// Returns the number of pulses the backend actually queued, computed
-  /// server-side from the device's own pulse_price — never trust a client
-  /// pulse count for a financial action.
-  Future<int> startMachine(String serial, {required String type, required double price}) async {
+  Future<void> sendConfig(String serial) async {
     try {
-      final response = await _dio.post('/technician/devices/$serial/start', data: {
-        'type': type,
-        'price': price,
-      });
-      return response.data['pulses'] as int;
+      await _dio.post('/technician/devices/$serial/send-config');
+    } on DioException catch (e) {
+      throw _rethrow(e);
+    }
+  }
+
+  /// Returns (pulses, opId) — opId is polled via [startAckStatus].
+  Future<(int, String)> startMachine(String serial, {required String type, required double price}) async {
+    try {
+      final r = await _dio.post('/technician/devices/$serial/start', data: {'type': type, 'price': price});
+      return (r.data['pulses'] as int, r.data['op_id'] as String);
+    } on DioException catch (e) {
+      throw _rethrow(e);
+    }
+  }
+
+  Future<String> startAckStatus(String opId) async {
+    try {
+      final r = await _dio.get('/technician/start-ack/$opId');
+      return r.data['status'] as String;
     } on DioException catch (e) {
       throw _rethrow(e);
     }

@@ -2,14 +2,14 @@ import 'package:flutter/material.dart';
 
 import 'services/api_service.dart';
 import 'screens/login_screen.dart';
-import 'screens/qr_scan_screen.dart';
+import 'screens/home_shell.dart';
 
 void main() {
-  runApp(const LbTechnicianApp());
+  runApp(const LbAdminApp());
 }
 
-class LbTechnicianApp extends StatelessWidget {
-  const LbTechnicianApp({super.key});
+class LbAdminApp extends StatelessWidget {
+  const LbAdminApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -40,9 +40,7 @@ class _AuthGateState extends State<_AuthGate> {
         if (!snapshot.hasData) {
           return const Scaffold(body: Center(child: CircularProgressIndicator()));
         }
-        return snapshot.data!
-            ? QrScanScreen(api: widget.api)
-            : LoginScreen(api: widget.api);
+        return snapshot.data! ? HomeShell(api: widget.api) : LoginScreen(api: widget.api);
       },
     );
   }

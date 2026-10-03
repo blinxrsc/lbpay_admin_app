@@ -1,17 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
-import '../services/api_service.dart';
-import 'device_detail_screen.dart';
-
-/// Expects the QR code to encode the device serial number directly (e.g.
-/// "NYJ312007A100216290"), or a URL ending in it (e.g.
-/// "https://lbpaylinker.com/device/NYJ312007A100216290" — the same QR
-/// customers scan). Adjust `_extractSerial` if your printed QR format
-/// differs.
+/// Generic reusable scanner: pops the route with the extracted device
+/// serial once a code is read, or null if the user backs out.
+/// Expects the QR to encode the serial directly, or a URL ending in it
+/// (e.g. the same QR customers scan, "https://lbpaylinker.com/device/<serial>").
 class QrScanScreen extends StatefulWidget {
-  final ApiService api;
-  const QrScanScreen({super.key, required this.api});
+  final String title;
+  const QrScanScreen({super.key, this.title = 'Scan Device QR'});
 
   @override
   State<QrScanScreen> createState() => _QrScanScreenState();
@@ -22,35 +18,38 @@ class _QrScanScreenState extends State<QrScanScreen> {
 
   String _extractSerial(String raw) {
     final trimmed = raw.trim();
-    if (trimmed.contains('/')) {
-      return trimmed.split('/').last;
-    }
-    return trimmed;
+    return trimmed.contains('/') ? trimmed.split('/').last : trimmed;
   }
 
   void _onDetect(BarcodeCapture capture) {
     if (_handled) return;
-    final barcode = capture.barcodes.firstOrNull;
-    final raw = barcode?.rawValue;
+    final raw = capture.barcodes.isEmpty ? null : capture.barcodes.first.rawValue;
     if (raw == null) return;
-
     _handled = true;
-    final serial = _extractSerial(raw);
-
-    Navigator.of(context)
-        .push(MaterialPageRoute(builder: (_) => DeviceDetailScreen(api: widget.api, serial: serial)))
-        .then((_) => setState(() => _handled = false));
+    Navigator.of(context).pop(_extractSerial(raw));
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Scan Device QR')),
-      body: MobileScanner(onDetect: _onDetect),
+      appBar: AppBar(title: Text(widget.title)),
+      body: Stack(
+        children: [
+          MobileScanner(onDetect: _onDetect),
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 32,
+            child: Center(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(8)),
+                child: const Text('Point the camera at the device\'s QR code', style: TextStyle(color: Colors.white)),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
-}
-
-extension _FirstOrNull<T> on List<T> {
-  T? get firstOrNull => isEmpty ? null : first;
 }
