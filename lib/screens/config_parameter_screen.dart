@@ -107,6 +107,16 @@ class _ConfigParameterScreenState extends State<ConfigParameterScreen> {
       _error = null;
     });
     final messenger = ScaffoldMessenger.of(context);
+    final params = _readForm();
+    final cyclePrices = [
+      params.washerColdPrice, params.washerWarmPrice, params.washerHotPrice,
+      params.dryerLowPrice, params.dryerMedPrice, params.dryerHiPrice,
+    ].where((p) => p > 0);
+
+    if (cyclePrices.isNotEmpty && params.pulsePrice >= cyclePrices.reduce((a, b) => a < b ? a : b)) {
+      setState(() => _error = 'Pulse price must be lower than your cheapest cycle price.');
+      return;
+    }
     try {
       final updated = await widget.api.updateParameters(_device!.serialNumber, _readForm());
       _setControllersFrom(updated);
